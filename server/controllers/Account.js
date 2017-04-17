@@ -1,16 +1,16 @@
 const models = require('../models');
-
 const Account = models.Account;
 
 const loginPage = (req, res) => {
-  res.render('login');
+  res.render('login', { csrfToken: req.csrfToken() });
 };
 
 const signupPage = (req, res) => {
-  res.render('signup');
+  res.render('signup', { csrfToken: req.csrfToken() });
 };
 
 const logout = (req, res) => {
+  req.session.destroy();
   res.redirect('/');
 };
 
@@ -24,12 +24,15 @@ const login = (request, response) => {
 
   if (!username || !password) {
     return res.status(400).json({ error: 'RAWR! All fields are required' });
+    // console.log('This shit is fucked');
   }
 
   return Account.AccountModel.authenticate(username, password, (err, account) => {
     if (err || !account) {
       return res.status(401).json({ error: 'Wrong username or password' });
     }
+
+    req.session.account = Account.AccountModel.toAPI(account);
 
     return res.json({ redirect: '/maker' });
   });
@@ -56,14 +59,17 @@ const signup = (request, response) => {
     const accountData = {
       username: req.body.username,
       salt,
-      pasword: hash,
+      password: hash,
     };
 
     const newAccount = new Account.AccountModel(accountData);
 
     const savePromise = newAccount.save();
 
-    savePromise.then(() => res.json({ redirect: '/maker' }));
+    savePromise.then(() => {
+      req.session.account = Account.AccountModel.toAPI(newAccount);
+      return res.json({ redirect: '/maker' });
+    });
 
     savePromise.catch((err) => {
       console.log(err);
